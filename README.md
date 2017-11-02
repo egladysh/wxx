@@ -7,10 +7,10 @@ A C++ DSL for generating dynamic HTML
 C++11 or later
 
 ### Steps
-* Suppose you have cloned the source to [HOME]/work/wxx
-* For out-of source, create a build folder in [HOME]/work, and go there.
+* Suppose you cloned to [HOME]/work/wxx
+* For out-of-source, create a build folder in [HOME]/work, and go there.
 
-    $mkdir build
+	$mkdir build
 
 	$cd build
 
@@ -20,7 +20,7 @@ C++11 or later
 
 * Build it.     
 
-    $make
+	$make
 
 * You can now run a sample (the sample source is in wxx/sample/hello.cpp)
     
