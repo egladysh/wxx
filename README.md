@@ -1,6 +1,8 @@
 # wxx
 A C++ DSL for generating dynamic HTML
 
+**sample/hello.cpp** should give some ideas.
+
 ## Build
 
 ### Requirements
