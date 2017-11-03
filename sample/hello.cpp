@@ -81,7 +81,7 @@ int main()
 		//static button
 		{
 			tag btn{"button"};
-			btn += "Click Me!"_v;
+			btn += "Click Me!"_ent;
 			btn += {"onclick", onclick.call_string("I am a static button"_v)};
 
 			sample.body() += btn;
