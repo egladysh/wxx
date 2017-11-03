@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml11.dtd">
+<html><head><meta http-equiv='content-type' content='text/html; charset=UTF-8'/>
+<meta http-equiv='X-UA-Compatible'/>
+<meta name='keywords' content='wxx,sample'/>
+<script language='JavaScript'>var vs__0;vs__0='Hello! I am a hybrid div.';
+</script>
+</head>
+<body id='sample_body'><div>Hello! I am a static div.</div>
+<div style='color:blue;font-size:1.5em' id='autoid__7'></div>
+<script language='JavaScript'>vt__8=document.getElementById('autoid__7');vt__8.innerHTML=vs__0;
+</script>
+<script language='JavaScript'>var dynamic_tag;var vt__1;vt__1=document.getElementById('sample_body');
+if (vt__1) {
+var tc=function() { var p = document.createElement("div");
+p.setAttribute('style','color:green;font-size:2em;');if( typeof browser !== 'undefined' && browser=='IE' ) { p.style.setAttribute("cssText", 'color:green;font-size:2em;'); } ;p.appendChild(document.createTextNode('Hello! I am a dynamic one.'));
+return p; }
+dynamic_tag=tc()
+;
+vt__1.appendChild(dynamic_tag);
+}
+</script>
+<script language='JavaScript'>function f__2(arg__4) {
+alert(arg__4);
+}
+</script>
+<button id='autoid__9'></button>
+<script language='JavaScript'>vt__10=document.getElementById('autoid__9');vt__10.setAttribute('onclick','f__2('+'"'+'I am a static button'+'"'+')');
+vt__10.innerHTML='Click Me!';
+</script>
+<script language='JavaScript'>var vt__5;var vt__6;vt__6=document.getElementById('sample_body');
+if (vt__6) {
+var tc=function() { var p = document.createElement("button");
+p.setAttribute('onclick','f__2('+'"'+'I am a dynamic button'+'"'+')');p.appendChild(document.createTextNode('Click Me!'));
+return p; }
+vt__5=tc()
+;
+vt__6.appendChild(vt__5);
+}
+</script>
+</body>
+</html>
