@@ -3,6 +3,7 @@
 
 #include <regex>
 #include <vector>
+#include <list>
 #include <iostream>
 #include <algorithm>
 #include <wxx/func.h>
@@ -206,9 +207,9 @@ namespace wxx
 	struct tag
 	{
 		std::string name_;
-		mutable std::vector<tag_attr> attrs_;
+		mutable std::list<tag_attr> attrs_;
 		tag_content cont_;
-		std::vector<tag> tags_;
+		std::list<tag> tags_;
 		mutable std::string injection_;
 
 		explicit tag(const std::string& n)
@@ -242,7 +243,7 @@ namespace wxx
 				*pf += a;
 			}
 			else {
-				attrs_.push_back(a);
+				attrs_.insert(attrs_.end(), a);
 			}
 			return *this;
 		}
@@ -262,8 +263,13 @@ namespace wxx
 		tag& operator +=(const tag& t)
 		{
 			assert(cont_.empty());
-			tags_.push_back(t);
+			tags_.insert(tags_.end(), t);
 			return *this;
+		}
+
+		tag& add_tag(const tag& t)
+		{
+			return *tags_.insert(tags_.end(), t);
 		}
 
 		template< typename S >
@@ -496,7 +502,7 @@ namespace wxx
 				if (!pid) {
 					std::ostringstream ss;
 					ss << "autoid__" << get_symcode();
-					attrs_.push_back({"id", val<std::string>(ss.str())});
+					attrs_.insert(attrs_.end(), {"id", val<std::string>(ss.str())});
 				}
 				else {
 					assert(pid->v_.static_); //id must be static for dynamic modifications

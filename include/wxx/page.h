@@ -78,6 +78,11 @@ namespace wxx
 			return *this;
 		}
 
+		tag& add_to_body(const tag& t)
+		{
+			return body().add_tag(t);
+		}
+
 		page& init_locale(const std::vector<std::pair<std::string, std::string>>& lc) //name -> link
 		{
 			{
