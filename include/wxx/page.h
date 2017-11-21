@@ -54,12 +54,23 @@ namespace wxx
 		page& operator +=(const tag& t)
 		{
 			assert(t.name_ != "head" && t.name_ != "body");
-			if (t.name_ == "meta" 
+			if (t.name_ == "script") {
+				if (t.find_attr("src")) {
+					std::ostringstream ss;
+					ss << t;
+					find_tag("head").injection_ += ss.str();
+				}
+				else {
+					find_tag("head") += t;
+				}
+			}
+			else if (t.name_ == "meta" 
 					|| t.name_ == "title"
 					|| t.name_ == "link"
-					|| t.name_ == "script"
 					) {
-				find_tag("head") += t;
+				std::ostringstream ss;
+				ss << t;
+				find_tag("head").injection_ += ss.str();
 			}
 			else {
 				body() += t;
@@ -130,7 +141,7 @@ namespace wxx
 			if (!php_.empty()) {
 				std::ostringstream ss;
 				ss << php << php_ << phpend << std::endl;
-				find_tag("head").injection_ = ss.str();
+				find_tag("head").injection_ += ss.str();
 			}
 			s << html_;
 		}
