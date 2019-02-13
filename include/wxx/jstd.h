@@ -13,7 +13,6 @@ namespace jstd
 			return s__<void>(ss.str());
 		}
 
-
 	inline const func<std::string(std::string)>& encodeURI()
 	{
 		static func<std::string(std::string)> f{"encodeURIComponent"};

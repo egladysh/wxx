@@ -8,11 +8,14 @@
 
 namespace wxx
 {
+	template <typename T>
+	struct func;
+
 	struct tag_t;
 	struct json;
-	struct func_t;
 
 	template<typename T> struct array_t;
+	template<typename K, typename T> struct map_t;
 
 		template<typename LT>
 			struct do_length;
@@ -41,6 +44,18 @@ namespace wxx
 					return n_ + ".length";
 				}
 			};
+		template<typename K, typename T>
+			struct do_length<map_t<K, T>>
+			{
+				const std::string& n_;
+				do_length(const std::string& n)
+					:n_{n}
+				{}
+				std::string operator()() const
+				{
+					return n_ + ".length";
+				}
+			};
 
 		template<typename T> struct s__;
 
@@ -58,6 +73,15 @@ namespace wxx
 		{
 			if (!n_.empty())
 				s << n_;
+		}
+
+		template<typename F> 
+		func<F> mf_(const std::string& n) const
+		{
+			std::ostringstream ss;
+			print(ss);
+			ss << "." << n;
+			return func<F>{ss.str()};
 		}
 
 		sb__& operator=(const sb__&) = delete;
@@ -109,7 +133,57 @@ namespace wxx
 		}
 
 		s__<T> operator[](const s__<int>& i);
+
+		s__<void> push(const s__<T>& v)
+		{
+			std::ostringstream ss;
+			ss << n_ << ".push(" << v << ")";
+			return s__<void>(ss.str());
+		}
 	};
+
+	template<typename T>
+	s__<array_t<T>> new_array()
+	{
+		std::ostringstream ss;
+		ss << "new Array()";
+		return s__<array_t<T>>(ss.str());
+	}
+	
+	template<typename K, typename T>
+	struct s__<map_t<K, T>> : sb__
+	{
+		typedef map_t<K, T> value_type;
+
+		using sb__::n_;
+
+		explicit s__(const std::string& n)
+			:sb__{n}
+		{
+		}
+		
+		s__<int> length() const
+		{
+			return s__<int>(do_length<value_type>{n_}());
+		}
+
+		s__<T> operator[](const s__<K>& i);
+
+		s__<void> insert(const s__<K>& k, const s__<T>& v)
+		{
+			std::ostringstream ss;
+			ss << n_ << "[" << k << "]=" << v;
+			return s__<void>(ss.str());
+		}
+
+		s__<bool> exists(const s__<K>& k)
+		{
+			std::ostringstream ss;
+			ss << "(" << k << " in " << n_ << ")";
+			return s__<bool>(ss.str());
+		}
+	};
+
 
 	template<>
 	struct s__<std::string> : sb__
@@ -121,6 +195,11 @@ namespace wxx
 		explicit s__(const std::string& n)
 			:sb__{n}
 		{
+		}
+
+		bool empty() const
+		{
+			return n_.empty();
 		}
 		
 		s__<int> length() const
@@ -191,6 +270,13 @@ namespace wxx
 
 	template<typename T>
 	s__<T> s__<array_t<T>>::operator[](const s__<int>& i)
+	{
+		std::ostringstream ss;
+		ss << n_ << "[" << i << "]";
+		return s__<T>(ss.str());
+	}
+	template<typename K, typename T>
+	s__<T> s__<map_t<K, T>>::operator[](const s__<K>& i)
 	{
 		std::ostringstream ss;
 		ss << n_ << "[" << i << "]";

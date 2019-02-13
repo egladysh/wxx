@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <wxx/func.h>
 #include <wxx/jstd.h>
+#include <wxx/php.h>
 
 namespace wxx
 {
@@ -29,8 +30,8 @@ namespace wxx
 	template<>
 	struct entity<std::string> : s__<std::string>
 	{
-		explicit entity(const std::string& v)
-			:s__<std::string>{xml_escape(v)}
+		explicit entity(const std::string& v, bool escape = true)
+			:s__<std::string>{escape?xml_escape(v):v}
 		{
 		}
 	};
@@ -39,13 +40,14 @@ namespace wxx
 	{
 		return entity<std::string>(std::string(p, p+n));
 	}
+	inline entity<std::string> operator "" _inner(const char* p, size_t n)
+	{
+		return entity<std::string>(std::string(p, p+n), false);
+	}
 
 	struct tag_content__t;
 	struct value_content__t;
 
-	template<typename Type>
-	struct content
-	{
 		template<typename T, typename Tag>
 			struct is_static
 			{
@@ -74,6 +76,18 @@ namespace wxx
 				};
 			};
 
+		template<>
+			struct is_static<val<lambda_t>, value_content__t>
+			{
+				enum 
+				{
+					value = false
+				};
+			};
+
+	template<typename Type>
+	struct content
+	{
 		bool static_;
 		std::string v_;
 
@@ -211,9 +225,11 @@ namespace wxx
 		tag_content cont_;
 		std::list<tag> tags_;
 		mutable std::string injection_;
+		bool script_printed_;
 
 		explicit tag(const std::string& n)
 			:name_(n)
+			,script_printed_{false}
 		{
 			assert(!n.empty());
 		}
@@ -234,6 +250,20 @@ namespace wxx
 			}
 			return &*it;
 		}
+		tag* find_by_id(const std::string& name)
+		{
+			auto c = val_content{val<std::string>{name}};
+			auto it = std::find_if(tags_.begin(), tags_.end(), [&c](const tag& v) -> bool { 
+				const tag_attr* a = v.find_attr("id");
+				if (!a) 
+					return false; 
+				return a->v_.static_ && a->v_.v_ == c.v_;
+			});
+			if (it == tags_.end()) {
+				return nullptr;
+			}
+			return &*it;
+		}
 
 		tag& operator +=(const tag_attr& a)
 		{
@@ -250,7 +280,9 @@ namespace wxx
 
 		tag& operator +=(const tag_content& c)
 		{
-			assert(tags_.empty());
+			if (!tags_.empty()) {
+				assert(tags_.empty());
+			}
 			if (cont_.empty()) {
 				cont_ = c;
 			}
@@ -267,27 +299,52 @@ namespace wxx
 			return *this;
 		}
 
+		tag& operator()(const tag_attr& v)
+		{
+			return *this += v;
+		}
+		tag& operator()(const tag& v)
+		{
+			return *this += v;
+		}
+		tag& operator()(const tag_content& v)
+		{
+			return *this += v;
+		}
+
 		tag& add_tag(const tag& t)
 		{
 			return *tags_.insert(tags_.end(), t);
 		}
 
-		template< typename S >
-		void print(S& s) const;
+		enum print_mode
+		{
+			pm_all
+			,pm_tags
+			,pm_script
+		};
+
+		template<typename S>
+		void print(S& s, print_mode pm=pm_all, bool keep_open=false) const;
+		
+		template<typename S>
+		void close_tag(S& s) const
+		{
+			s << "</" << name_ << ">";
+		}
 
 	private:
 		bool is_dynamic() const;
 	};
 
-
 	struct script : tag
 	{
-		script()
+		explicit script()
 			:tag("script")
 		{
 			*(tag*)this += {"language", "JavaScript"_v};
 		}
-		script(const std::string& s)
+		explicit script(const std::string& s)
 			:tag("script")
 		{
 			*(tag*)this += {"language", "JavaScript"_v};
@@ -363,6 +420,12 @@ namespace wxx
 			ss << *this << "=document.getElementById(" << v << ")";
 			return s__<void>(ss.str());
 		}
+		s__<void> operator=(const std::string& v) const
+		{
+			std::ostringstream ss;
+			ss << *this << "=document.getElementById(" << val<std::string>{v} << ")";
+			return s__<void>(ss.str());
+		}
 
 		s__<void> operator=(const val_content& v) const
 		{
@@ -388,6 +451,31 @@ namespace wxx
 			std::ostringstream ss;
 			ss << *this << "." << mem;
 			return var<T>(ss.str());
+		}
+		template<typename T>
+		func<T> mf_(const std::string& mem)
+		{
+			std::ostringstream ss;
+			ss << *this << "." << mem;
+			return func<T>(ss.str());
+		}
+		s__<std::string> get_attribute(const std::string& n)
+		{
+			std::ostringstream ss;
+			ss << *this << ".getAttribute('" << n << "')";
+			return s__<std::string>(ss.str());
+		}
+		s__<void> set_style(const tag_attr& a)
+		{
+			std::ostringstream ss;
+			ss << *this << ".style." << a.n_ << "=" << a.v_;
+			return s__<void>(ss.str());
+		}
+		s__<std::string> get_style(const std::string& n)
+		{
+			std::ostringstream ss;
+			ss << *this << ".style." << n;
+			return s__<std::string>(ss.str());
 		}
 
 		s__<std::string> text() const
@@ -418,7 +506,16 @@ namespace wxx
 			return s__<void>(ss.str());
 		}
 
+		/*
 		s__<void> append(const var& v)
+		{
+			std::ostringstream ss;
+			ss << *this << ".appendChild(" << v << ")";
+			return s__<void>(ss.str());
+		}
+		*/
+
+		s__<void> append(const s__<tag_t>& v)
 		{
 			std::ostringstream ss;
 			ss << *this << ".appendChild(" << v << ")";
@@ -455,12 +552,22 @@ namespace wxx
 		void print(S& s) const
 		{
 			bool event = false;
-			if (a_.n_ == "onclick" || a_.n_ == "onchange")
-				event = false;
+
+			std::ostringstream sv;
+			sv << a_.v_;
+
+			std::string val = sv.str();
+
+			if (a_.n_ == "onload" || a_.n_ == "onclick" || a_.n_ == "onchange")
+				event = true;
+
+			if (event && val.find("function") == 0) {
+				s << n_ << "." << a_.n_ << "=" << a_.v_;
+				return;
+			}
+
 			s << n_ << ".setAttribute('" << a_.n_ << "'," 
-				<< (event?"'":"")
 				<< a_.v_ 
-				<< (event?"'":"")
 				<< ")";
 
 			if (a_.n_ == "style") {
@@ -494,48 +601,59 @@ namespace wxx
 
 
 
-	template< typename S >
-		void tag::print(S& s) const
+	template<typename S>
+	void tag::print(S& s, print_mode pm, bool keep_open) const
 		{
-			if (is_dynamic()) {
-				const tag_attr* pid = find_attr("id"); //generate auto id for dynamic stuff
-				if (!pid) {
-					std::ostringstream ss;
-					ss << "autoid__" << get_symcode();
-					attrs_.insert(attrs_.end(), {"id", val<std::string>(ss.str())});
-				}
-				else {
-					assert(pid->v_.static_); //id must be static for dynamic modifications
-				}
+			bool close = false;
+			if (pm == pm_script && name_ == "script"){
+				s << injection_;
 			}
-			//content or tags
-			//assert(!(cont_.empty() && !tags_.empty()));
-			s << "<" << name_;
-			for (const auto& a : attrs_) {
-				if (a.v_.static_) {
-					s << " " << a;
+			else if ((pm == pm_tags && name_ != "script") || pm == pm_all) {
+				if (is_dynamic()) {
+					const tag_attr* pid = find_attr("id"); //generate auto id for dynamic stuff
+					if (!pid) {
+						std::ostringstream ss;
+						ss << "autoid__" << get_symcode();
+						attrs_.insert(attrs_.end(), {"id", val<std::string>(ss.str())});
+					}
+					else {
+						assert(pid->v_.static_); //id must be static for dynamic modifications
+					}
 				}
+				//content or tags
+				//assert(!(cont_.empty() && !tags_.empty()));
+				s << "<" << name_;
+				for (const auto& a : attrs_) {
+					if (a.v_.static_) {
+						s << " " << a;
+					}
+				}
+				if (name_ == "meta" || name_ == "link") {
+					assert(tags_.empty());
+					s << "/>" << std::endl;
+					return;
+				}
+
+				s << ">";
+				close = true;
+
+				s << injection_;
+
+				if (!cont_.empty() && cont_.static_)
+					s << cont_;
 			}
-			if (name_ == "meta") {
-				assert(tags_.empty());
-				s << "/>" << std::endl;
-				return;
-			}
-
-			s << ">";
-
-			s << injection_;
-
-			if (!cont_.empty() && cont_.static_)
-				s << cont_;
 
 			for (const auto& t: tags_) {
-				s << t;
+				t.print(s, pm, false);
 			}
-			s << "</" << name_ << ">" << std::endl;
+
+			if (close && !keep_open) {
+				close_tag(s);
+			}
+
 			//do the dyanmic stuff
 			//
-			if(is_dynamic())
+			if(is_dynamic() && (pm == pm_script || pm == pm_all))
 			{
 				std::ostringstream ss;
 				var<tag_t> tt;
@@ -555,11 +673,31 @@ namespace wxx
 					ss << set_inner(tt, cont_) << ";" << std::endl;
 				}
 
-				if (!ss.str().empty())
-					s << script(ss.str());
+				if (!ss.str().empty()) {
+					if (pm == pm_script) {
+						s << ss.str();
+					}
+					else {
+						s << script(ss.str());
+					}
+				}
 			}
 		}
 	
+		template<typename S>
+		void collect_scripts(S& s, const tag& t)
+		{
+			for (const auto& v: t.tags_) {
+				if (v.name_ == "script") {
+					assert(!v.script_printed_);
+					s << v.injection_;
+				}
+				else {
+					collect_scripts(s, v);
+				}
+			}
+		}
+		
 		inline s__<void> var<tag_t>::operator=(const tag& t) const
 		{
 			std::ostringstream ss;
@@ -569,6 +707,7 @@ namespace wxx
 			if (t.name_ == "table") {
 				ss << "; var table=" << *this;
 			}
+			collect_scripts(ss, t);
 			return s__<void>(ss.str());
 		}
 		inline s__<void> var<tag_t>::operator+=(const table_element& v) const

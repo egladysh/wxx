@@ -10,6 +10,28 @@
 
 namespace wxx
 {
+	struct lambda_t
+	{
+		std::string body_;
+
+		explicit lambda_t(const std::string& b)
+			:body_(b)
+		{}
+
+		template< typename S >
+		void print(S& s) const
+		{
+			s << body_;
+		}
+	};
+	template<typename S>
+		auto operator<<(S& os, const lambda_t& t) -> decltype(t.print(os), os) 
+		{ 
+			t.print(os); 
+			return os; 
+		} 
+
+
 	template<typename T>
 		inline const char* get_var_prefix()
 		{
@@ -42,6 +64,78 @@ namespace wxx
 		}
 	
 	template< typename T >
+	struct val : s__<T>
+	{
+		explicit val(const T& v)
+			:s__<T>{ 
+				[&v] {
+					std::ostringstream ss;
+					ss << v;
+					return ss.str();
+				}()
+			}
+		{}
+	};
+
+	template<>
+	struct val<std::string> : s__<std::string>
+	{
+		explicit val(const std::string& v)
+			:s__<std::string>{ 
+				[&v] {
+					std::ostringstream ss;
+					std::string s1 = std::regex_replace( v, std::regex("'"), "\"" );
+					s1 = std::regex_replace( s1, std::regex("\\\\"), "\\\\" );
+					ss << "\'" << s1 << "\'";
+					return ss.str();
+				}()
+			}
+		{}
+	};
+	template<>
+	struct val<char> : s__<char>
+	{
+		explicit val(const char& v)
+			:s__<char>{ 
+				[&v] {
+					std::ostringstream ss;
+					ss << "\'" << v << "\'";
+					return ss.str();
+				}()
+			}
+		{
+		}
+	};
+
+	template<>
+	struct val<bool> : s__<bool>
+	{
+		explicit val(bool v)
+			:s__<bool>{ 
+				[&v] {
+					std::ostringstream ss;
+					ss << (v?"true":"false"); 
+					return ss.str();
+				}()
+			}
+		{}
+	};
+
+	template< typename T>
+	struct val< func<T> > : s__< func<T> >
+	{
+		explicit val(const func<T>& v)
+			:s__< func<T> >{ 
+				[&v] {
+					std::ostringstream ss;
+					ss << v.n_;
+					return ss.str();
+				}()
+			}
+		{}
+	};
+
+	template< typename T >
 	struct var : s__<T>
 	{
 		explicit var()
@@ -62,7 +156,14 @@ namespace wxx
 		s__<void> init()
 		{
 			std::ostringstream ss;
-			ss << "var " << *this;
+			ss << "var " << *this << "=null";
+			return s__<void>(ss.str());
+		}
+
+		s__<void> init(const s__<T>& vv)
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=" << vv;
 			return s__<void>(ss.str());
 		}
 
@@ -101,6 +202,22 @@ namespace wxx
 			ss << *this << ".toString()";
 			return s__<std::string>(ss.str());
 		}
+
+		s__<array_t<std::string>> split(const s__<std::string>& d) const
+		{
+			static_assert(std::is_same<T, std::string>::value, "must be string");
+			std::ostringstream ss;
+			ss << *this << ".split(" << d << ")";
+			return s__<array_t<std::string>>(ss.str());
+		}
+
+		template<typename F> 
+		func<F> mf_(const std::string& n) const
+		{
+			std::ostringstream ss;
+			ss << *this << "." << n;
+			return func<F>{ss.str()};
+		}
 	};
 
 	template<typename T>
@@ -123,6 +240,13 @@ namespace wxx
 		{
 		}
 
+		s__<void> init()
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=[]";
+			return s__<void>(ss.str());
+		}
+
 		s__<void> init(const s__<array_t<T>>& v)
 		{
 			std::ostringstream ss;
@@ -136,65 +260,64 @@ namespace wxx
 			ss << *this << "=" << v;
 			return s__<void>(ss.str());
 		}
+
+		template<typename F> 
+		func<F> mf_(const std::string& n) const
+		{
+			std::ostringstream ss;
+			ss << *this << "." << n;
+			return func<F>{ss.str()};
+		}
 	};
 
-	template< typename T >
-	struct val : s__<T>
+	template<typename K, typename T>
+	struct var< map_t<K, T> > : s__< map_t<K, T> >
 	{
-		explicit val(const T& v)
-			:s__<T>{ 
-				[&v] {
+		typedef s__<map_t<K, T>> base_t;
+
+		explicit var()
+			:base_t{ 
+				[] {
 					std::ostringstream ss;
-					ss << v;
+					ss << "m" << get_var_prefix<T>() << get_symcode();
 					return ss.str();
 				}()
 			}
 		{}
-	};
 
-	template<>
-	struct val<std::string> : s__<std::string>
-	{
-		explicit val(const std::string& v)
-			:s__<std::string>{ 
-				[&v] {
-					std::ostringstream ss;
-					std::string s1 = std::regex_replace( v, std::regex("'"), "\"" );
-					s1 = std::regex_replace( s1, std::regex("\\\\"), "\\\\" );
-					ss << "\'" << s1 << "\'";
-					return ss.str();
-				}()
-			}
+		explicit var(const std::string& constant)
+			:base_t(constant)
 		{
 		}
-	};
-	template<>
-	struct val<char> : s__<char>
-	{
-		explicit val(const char& v)
-			:s__<char>{ 
-				[&v] {
-					std::ostringstream ss;
-					ss << "\'" << v << "\'";
-					return ss.str();
-				}()
-			}
-		{
-		}
-	};
 
-	template<>
-	struct val<bool> : s__<bool>
-	{
-		explicit val(bool v)
-			:s__<bool>{ 
-				[&v] {
-					std::ostringstream ss;
-					ss << (v?"true":"false"); 
-					return ss.str();
-				}()
-			}
-		{}
+		s__<void> init()
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=[]";
+			return s__<void>(ss.str());
+		}
+
+		s__<void> init(const s__<map_t<K, T>>& v)
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=" << v;
+			return s__<void>(ss.str());
+		}
+
+		s__<void> operator=(const s__<map_t<K, T>>& v)
+		{
+			std::ostringstream ss;
+			ss << *this << "=" << v;
+			return s__<void>(ss.str());
+		}
+
+		template<typename F> 
+		func<F> mf_(const std::string& n) const
+		{
+			std::ostringstream ss;
+			ss << *this << "." << n;
+			return func<F>{ss.str()};
+		}
 	};
 
 	template<typename T>
@@ -204,9 +327,6 @@ namespace wxx
 			ss << v;
 			return ss.str();
 		}
-
-	template <typename T>
-	struct func;
 
 	struct arg_name
 	{
@@ -324,11 +444,24 @@ namespace wxx
 
 
 		template<size_t I>
+		typename std::tuple_element<I,decltype(t_)>::type const& arg() const
+		{
+			return std::get<I>(t_);
+		}
+		template<size_t I>
 		typename std::tuple_element<I,decltype(t_)>::type& arg()
 		{
 			return std::get<I>(t_);
 		}
 	
+		template<size_t I>
+		typename std::tuple_element<I,decltype(t_)>::type const& arg(const std::string& n) const
+		{
+			typename std::tuple_element<I,decltype(t_)>::type& r = arg<I>();
+			assert(r.n_ == n);
+			return r;
+
+		}
 		template<size_t I>
 		typename std::tuple_element<I,decltype(t_)>::type& arg(const std::string& n)
 		{
@@ -358,7 +491,10 @@ namespace wxx
 		template< typename S >
 		void print(S& s) const
 		{
-			assert(!print_cnt_);
+			if (print_cnt_) {
+				std::cerr << "func: " << n_ << std::endl;
+				assert(!print_cnt_);
+			}
 			++print_cnt_;
 			s << "function " << n_ << "(";
 			print_tuple<S, decltype(t_)>(s, t_);
@@ -603,7 +739,5 @@ namespace wxx
 	{
 		return arg_dummy<>(std::string(p, p+n));
 	}
-
-
 }
 #endif

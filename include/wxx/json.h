@@ -45,6 +45,19 @@ namespace wxx
 			,valid_{false}
 		{
 		}
+		s__<void> init()
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=null";
+			return s__<void>(ss.str());
+		}
+		s__<void> init(const s__<json>& v)
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=" << v;
+			valid_ = true;
+			return s__<void>(ss.str());
+		}
 
 		s__<void> init(const s__<std::string>& v) const
 		{
@@ -72,7 +85,10 @@ namespace wxx
 		}
 		s__<std::string> operator[](const s__<std::string>& ind) const
 		{
-			assert(valid_);
+			if (!valid_) {
+				std::cerr << *this << std::endl;
+				assert(valid_);
+			}
 			std::ostringstream ss;
 			ss << *this << "[" << ind << "]";
 			return s__<std::string>(ss.str());

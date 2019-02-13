@@ -2,7 +2,6 @@
 #define h_D11021BDEFB047C2823142551BE7CA34
 
 #include <wxx/tag.h>
-#include <wxx/php.h>
 
 namespace wxx
 {
@@ -21,6 +20,7 @@ namespace wxx
 				)
 			:type_{t}
 			,html_{"html"}
+			,title_{"title"}
 		{
 			html_ += tag{"head"};
 			html_ += tag{"body"};
@@ -42,13 +42,12 @@ namespace wxx
 			return find_tag("body");
 		}
 
-
 		template<typename T>
 		void set_title(const T& t)
 		{
 			tag tl("title");
 			tl += t;
-			*this += tl;
+			title_ = tl;
 		}
 
 		page& operator +=(const tag& t)
@@ -145,13 +144,21 @@ namespace wxx
 				s << type_;
 			if (!php_.empty()) {
 				std::ostringstream ss;
+				ss << title_;
 				ss << php << php_ << phpend << std::endl;
 				find_tag("head").injection_ += ss.str();
 			}
-			s << html_;
+			html_.print(s, tag::pm_tags, true);
+			std::ostringstream st;
+			html_.print(st, tag::pm_script);
+			s << script(st.str());
+			html_.close_tag(s);
+			//s << html_;
 		}
 
 	private:
+		tag title_;
+	
 		tag& find_tag(const std::string& n)
 		{
 			return *std::find_if(html_.tags_.begin(), html_.tags_.end(), [&n](const tag& v) ->bool { return v.name_ == n; });

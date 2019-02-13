@@ -50,30 +50,33 @@ namespace ajax
 	{
 		s__<std::string> t_;
 		const params& p_;
-		const xml_callback& cb_;
+		s__<xml_callback> cb_;
 		
 
-		explicit xml_request(s__<std::string> target, const params& p, const xml_callback& cb)
+		explicit xml_request(s__<std::string> target, const params& p, s__<xml_callback> cb)
 			:t_(std::move(target))
 			,p_(p)
 			,cb_(cb)
 		{}
+		explicit xml_request(s__<std::string> target, const params& p, const xml_callback& cb)
+			:t_(std::move(target))
+			,p_(p)
+			,cb_(cb.forward())
+		{}
 		explicit xml_request(const std::string& target, const params& p, const xml_callback& cb)
 			:t_{std::move(val<std::string>(target))}
 			,p_(p)
-			,cb_(cb)
+			,cb_(cb.forward())
 		{}
 
 		template< typename S >
 		void print(S& s) const
 		{
-			var<xml_callback> cb(cb_.n_);
 			func<void(std::string, std::string, xml_callback)> f("do_xml_ajax"); //in utils.js
 			std::ostringstream ss;
 			ss << p_;
 
-
-			s << f(t_, var<std::string>(ss.str()), cb);
+			s << f(t_, var<std::string>(ss.str()), cb_);
 		}
 	};
 

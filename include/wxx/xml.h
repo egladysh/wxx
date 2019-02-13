@@ -69,6 +69,20 @@ namespace wxx
 		{
 		}
 
+		s__<void> init()
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=null";
+			return s__<void>(ss.str());
+		}
+
+		s__<void> init(const s__<xml_t>& v)
+		{
+			std::ostringstream ss;
+			ss << "var " << *this << "=" << v;
+			return s__<void>(ss.str());
+		}
+
 		s__<void> operator=(const var& v)
 		{
 			std::ostringstream ss;

@@ -53,6 +53,14 @@ namespace wxx
 				return *this;
 			}
 
+			template<typename K, typename S2>
+			module__& foreach_(const var<K>& k, const S2& s2)
+			{
+				s_ << "for (var " << k << " in " << s2 << ") {";
+				return *this;
+			}
+
+
 			module__& break_()
 			{
 				s_ << wxx::break_;
@@ -118,14 +126,28 @@ namespace wxx
 			var<T> make_var(const std::string& n)
 			{
 				var<T> v(n);
-				s_ << "var " << v << ";";
+				s_ << v.init() << ";";
 				return v;
 			}
 			template<typename T>
 			var<T> make_var()
 			{
 				var<T> v;
-				s_ << "var " << v << ";";
+				s_ << v.init() << ";";
+				return v;
+			}
+			template<typename T>
+			var<T> make_var(const val<T>& vv)
+			{
+				var<T> v;
+				s_ << v.init(vv) << ";";
+				return v;
+			}
+			template<typename T>
+			var<T> make_var(const std::string& n, const val<T>& vv)
+			{
+				var<T> v{n};
+				s_ << v.init(vv) << ";";
 				return v;
 			}
 
@@ -133,15 +155,22 @@ namespace wxx
 			var<array_t<T>> make_array()
 			{
 				var<array_t<T>> v;
-				s_ << "var " << v << ";";
+				s_ << v.init() << ";";
 				return v;
 			}
 			template<typename T>
 			var<array_t<T>> make_array(const std::string& n)
 			{
 				var<array_t<T>> v(n);
-				s_ << "var " << v << ";";
+				s_ << v.init() << ";";
 				return v;
+			}
+
+			val<lambda_t> body()
+			{
+				auto s = s_.str();
+				s += "}";
+				return val<lambda_t>{lambda_t(s)};
 			}
 		};
 
@@ -167,16 +196,32 @@ namespace wxx
 
 			~def__()
 			{
-				s_ << wxx::end_;
+				s_ << end_;
 			}
 			
 		};
 
 
-		template<typename S, typename F>
-			def__<S,F> def_(S& s, F&f)
-			{
-				return def__<S, F>(s,f);
-			}
+	template<typename S, typename F>
+		def__<S,F> def_(S& s, F&f)
+		{
+			return def__<S, F>(s,f);
+		}
+
+	template<typename T> struct lambda;
+
+	template< typename R, typename... Args >
+	struct lambda<R(Args...)> : module__<std::ostringstream, R>
+	{
+		std::ostringstream ss_;
+		func<R(Args...)> f_;
+
+		lambda()
+			:module__<std::ostringstream, R>{ss_}
+			,f_("")
+		{
+			ss_ << f_ << begin_;
+		}
+	};
 }
 #endif

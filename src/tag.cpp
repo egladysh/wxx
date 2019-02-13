@@ -52,7 +52,7 @@ js_stream& js_stream::operator<<(const table_element& elm)
 
 js_stream& js_stream::operator<<( const tag& t )
 {
-	assert(t.name_ != "tr" && t.name_ != "td");
+	assert(t.name_ != "tr" && t.name_ != "td" && t.name_ != "script");
 
 	if (t.name_ == "table") {
 		assert(!table_row_ && !table_cell_);  //nested tables aren't supported
@@ -60,6 +60,12 @@ js_stream& js_stream::operator<<( const tag& t )
 			<< "var tc=function() { var p = document.createElement(\""
 			<< t.name_
 			<< "\"); var table = p;" << std::endl;
+	}
+	else if (t.name_ == "svg" || t.name_ == "circle") {
+		s_ 
+			<< "var tc=function() { var p = document.createElementNS('http://www.w3.org/2000/svg', '"
+			<< t.name_
+			<< "');" << std::endl;
 	}
 	else {
 		s_ 
@@ -76,6 +82,8 @@ js_stream& js_stream::operator<<( const tag& t )
 
 	//create kids
 	for (const auto& v: t.tags_) {
+		if (v.name_ == "script")
+			continue;
 		*this << v;
 		s_ << "var tag = tc(); p.appendChild(tag);" << std::endl;
 	}

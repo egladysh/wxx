@@ -37,7 +37,7 @@ namespace wxx
 	{
 		assert(!lc.empty());
 
-		ss << "$locale__ = get_current_locale(); $lfound__=false;" << std::endl;
+		ss << "$locale__=''; if (function_exists('get_current_locale')) { $locale__=get_current_locale(); } $lfound__=false;" << std::endl;
 		bool first=true;
 		for (const auto& v: lc) {
 			if (!first) {
